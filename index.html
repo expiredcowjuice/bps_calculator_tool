@@ -128,7 +128,7 @@
             correctAnswer = spreadInBps;
             
             // Update the question display
-            document.getElementById('question').textContent = `Bid: ${bid}, Ask: ${ask.toFixed(0)}`;
+            document.getElementById('question').textContent = `${bid.toLocaleString()} @ ${Math.round(ask).toLocaleString()}`;
         }
 
         // This will check the user’s answer (with tolerance)
@@ -178,8 +178,11 @@
             
             // Generate first question
             generateQuestion();
+
+            // Hide start game button
+            document.getElementById('startGameButton').style.display = 'none';
             
-            // Start the 60s timer
+            // Start the 120s timer
             startTimer();
         }
 
@@ -205,6 +208,9 @@
                     // Hide answer input and submit button
                     document.getElementById('answer').style.display = 'none';
                     document.getElementById('submitButton').style.display = 'none';
+
+                    // Show start game button
+                    document.getElementById('startGameButton').style.display = 'inline';
                 }
             }, 1000);
         }
