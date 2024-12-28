@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>BPS Calculation Practice</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #2b5876, #4e4376);
+            color: #fff;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        .question {
+            font-size: 1.5rem;
+            margin: 20px 0;
+        }
+
+        .input-container {
+            margin: 20px 0;
+        }
+
+        input {
+            font-size: 1rem;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button {
+            font-size: 1rem;
+            padding: 10px 20px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #6c63ff;
+            color: #fff;
+        }
+
+        button:hover {
+            background-color: #5750d8;
+        }
+
+        .result {
+            font-size: 1.2rem;
+            margin: 20px 0;
+        }
+
+        .timer {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+
+        .score {
+            font-size: 1.2rem;
+            margin: 20px 0;
+        }
+
+        .game-controls {
+            margin: 10px 0;
+        }
+
+        .game-controls input {
+            width: 60px;
+            padding: 5px;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>BPS Calculation Practice</h1>
+        
+        <div class="timer">Time Left (s): <span id="timer">60</span></div>
+        <div class="score">Score: <span id="score">0</span></div>
+        
+        <div class="question" id="question"></div>
+        
+        <div class="game-controls">
+            <label for="toleranceInput">Tolerance (± BPS):</label>
+            <input type="number" id="toleranceInput" value="10" min="0" max="50" />
+        </div>
+
+        <div class="input-container">
+            <input type="number" id="answer" placeholder="Enter BPS answer" style="display: none;" />
+            <button id="submitButton" style="display: none;">Submit</button>
+        </div>
+
+        <div class="result" id="result"></div>
+        
+        <button id="startGameButton">Start Game</button>
+        
+    </div>
+
+    <script>
+        let timerInterval;
+        let timeLeft = 60;
+        let score = 0;
+        let correctAnswer = 0;
+
+        function generateQuestion() {
+            // spreadInBps between 1 and 100 inclusive:
+            const spreadInBps = Math.floor(Math.random() * 100) + 1;
+            
+            // Random bid between 1 and 100000:
+            const bid = Math.floor(Math.random() * 100000) + 1;
+            
+            // Calculate ask using the spread in BPS
+            const ask = bid * (1 + spreadInBps / 10000);
+            
+            // The correct answer is simply the spread in basis points
+            correctAnswer = spreadInBps;
+            
+            // Update the question display
+            document.getElementById('question').textContent = `Bid: ${bid}, Ask: ${ask.toFixed(0)}`;
+        }
+
+        // This will check the user’s answer (with tolerance)
+        function submitAnswer() {
+            const userAnswer = parseInt(document.getElementById('answer').value);
+            const tolerance = parseInt(document.getElementById('toleranceInput').value) || 10;
+            const resultEl = document.getElementById('result');
+
+            if (isNaN(userAnswer)) {
+                resultEl.textContent = 'Please enter a valid number.';
+                resultEl.style.color = '#ff0000';
+                return;
+            }
+
+            // Check if user's answer is within the tolerance range
+            const isCorrect = Math.abs(userAnswer - correctAnswer) <= tolerance;
+
+            if (isCorrect) {
+                score++;
+                resultEl.textContent = `Correct! The answer was ${correctAnswer} basis points`;
+                resultEl.style.color = '#00ff00';
+            } else {
+                resultEl.textContent = `Incorrect. Correct answer: ${correctAnswer} basis points`;
+                resultEl.style.color = '#ff0000';
+            }
+
+            // Update score display
+            document.getElementById('score').textContent = score;
+
+            // Clear input field and generate new question
+            document.getElementById('answer').value = '';
+            generateQuestion();
+        }
+
+        // Game starter: resets everything and starts timer
+        function startGame() {
+            // Show answer input and submit button
+            document.getElementById('answer').style.display = 'inline';
+            document.getElementById('submitButton').style.display = 'inline';
+
+            // Reset score
+            score = 0;
+            document.getElementById('score').textContent = score;
+            
+            // Clear messages
+            document.getElementById('result').textContent = '';
+            
+            // Generate first question
+            generateQuestion();
+            
+            // Start the 60s timer
+            startTimer();
+        }
+
+        function startTimer() {
+            // Reset time to 60
+            timeLeft = 60;
+            document.getElementById('timer').textContent = timeLeft;
+
+            // Clear any existing interval
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+
+            // Start the countdown
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    document.getElementById('timer').textContent = "Time's up!";
+
+                    // Hide answer input and submit button
+                    document.getElementById('answer').style.display = 'none';
+                    document.getElementById('submitButton').style.display = 'none';
+                }
+            }, 1000);
+        }
+
+        // Event listeners
+        document.getElementById('submitButton').addEventListener('click', submitAnswer);
+        document.getElementById('startGameButton').addEventListener('click', startGame);
+        
+        // Submit on pressing Enter
+        document.getElementById('answer').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                submitAnswer();
+            }
+        });
+    </script>
+</body>
+</html>
