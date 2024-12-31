@@ -113,6 +113,7 @@
         let timeLeft = 120;
         let score = 0;
         let correctAnswer = 0;
+        let attemptedQuestions = [];
 
         function generateQuestion() {
             // spreadInBps between 1 and 100 inclusive:
@@ -158,6 +159,13 @@
             // Update score display
             document.getElementById('score').textContent = score;
 
+            attemptedQuestions.push({
+                question: `${document.getElementById('question').textContent}`,
+                userResponse: userAnswer,
+                correctAnswer: correctAnswer,
+                isCorrect: isCorrect
+            });
+
             // Clear input field and generate new question
             document.getElementById('answer').value = '';
             generateQuestion();
@@ -165,14 +173,9 @@
 
         // Game starter: resets everything and starts timer
         function startGame() {
-            // Show answer input and submit button
-            document.getElementById('answer').style.display = 'inline';
-            document.getElementById('submitButton').style.display = 'inline';
+            // Reset attempted questions
+            attemptedQuestions = [];
 
-            // Reset score
-            score = 0;
-            document.getElementById('score').textContent = score;
-            
             // Clear messages
             document.getElementById('result').textContent = '';
             
@@ -182,12 +185,16 @@
             // Hide start game button
             document.getElementById('startGameButton').style.display = 'none';
             
+            // Show answer input and submit button
+            document.getElementById('answer').style.display = 'inline';
+            document.getElementById('submitButton').style.display = 'inline';
+
             // Start the 120s timer
             startTimer();
         }
 
         function startTimer() {
-            // Reset time to 60
+            // Reset time to 120
             timeLeft = 120;
             document.getElementById('timer').textContent = timeLeft;
 
@@ -211,8 +218,50 @@
 
                     // Show start game button
                     document.getElementById('startGameButton').style.display = 'inline';
+
+                    displaySummary();
                 }
             }, 1000);
+        }
+
+        function displaySummary() {
+            const summaryDiv = document.getElementById('summary');
+            if (!summaryDiv) return;
+
+            if (attemptedQuestions.length === 0) {
+                summaryDiv.innerHTML = '<p>No questions were attempted.</p>';
+                return;
+            }
+
+            let tableHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Question</th>
+                            <th>Your Response</th>
+                            <th>Correct Answer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            attemptedQuestions.forEach(attempt => {
+                const rowColor = attempt.isCorrect ? '#00ff00' : '#ff0000';
+                tableHTML += `
+                    <tr style="color: ${rowColor};">
+                        <td>${attempt.question}</td>
+                        <td>${attempt.userResponse}</td>
+                        <td>${attempt.correctAnswer}</td>
+                    </tr>
+                `;
+            });
+
+            tableHTML += `
+                    </tbody>
+                </table>
+            `;
+
+            summaryDiv.innerHTML = tableHTML;
         }
 
         // Event listeners
@@ -224,6 +273,14 @@
             if (event.key === 'Enter') {
                 submitAnswer();
             }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.querySelector('.container');
+            const summaryDiv = document.createElement('div');
+            summaryDiv.id = 'summary';
+            summaryDiv.style.marginTop = '20px';
+            container.appendChild(summaryDiv);
         });
     </script>
 </body>
