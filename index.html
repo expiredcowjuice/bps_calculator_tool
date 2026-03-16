@@ -81,6 +81,77 @@
             padding: 5px;
             margin-left: 10px;
         }
+
+        .recent-scores {
+            font-size: 0.95rem;
+            margin: 15px 0;
+            opacity: 0.9;
+        }
+
+        .recent-scores span {
+            font-weight: bold;
+        }
+
+        .chart-btn {
+            margin-left: 10px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .chart-btn:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .chart-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .chart-overlay.visible {
+            display: flex;
+        }
+
+        .chart-modal {
+            background: linear-gradient(135deg, #2b5876, #4e4376);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .chart-modal h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+
+        .chart-modal .close-btn {
+            float: right;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 8px;
+        }
+
+        .chart-modal .close-btn:hover {
+            opacity: 0.8;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -89,6 +160,10 @@
         
         <div class="timer">Time Left (s): <span id="timer">120</span></div>
         <div class="score">Score: <span id="score">0</span></div>
+        <div class="recent-scores">
+            <span>Recent scores:</span> <span id="recentScores">—</span>
+            <button id="viewChartBtn" class="chart-btn">View all scores</button>
+        </div>
         
         <div class="question" id="question"></div>
         
@@ -108,12 +183,104 @@
         
     </div>
 
+    <div id="chartOverlay" class="chart-overlay">
+        <div class="chart-modal">
+            <button id="closeChartBtn" class="close-btn" aria-label="Close">&times;</button>
+            <h2>Score History</h2>
+            <p id="chartEmptyMsg" style="display: none; margin: 20px 0;">No games played yet. Complete a game to see your scores here.</p>
+            <div class="chart-container" id="chartContainer">
+                <canvas id="scoreChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        const SCORES_STORAGE_KEY = 'bps_game_scores';
+        const RECENT_COUNT = 5;
+
         let timerInterval;
         let timeLeft = 120;
         let score = 0;
         let correctAnswer = 0;
         let attemptedQuestions = [];
+        let scoreChart = null;
+
+        function getStoredScores() {
+            try {
+                const raw = localStorage.getItem(SCORES_STORAGE_KEY);
+                return raw ? JSON.parse(raw) : [];
+            } catch {
+                return [];
+            }
+        }
+
+        function saveScore(points) {
+            const scores = getStoredScores();
+            scores.push({ score: points, date: new Date().toISOString() });
+            localStorage.setItem(SCORES_STORAGE_KEY, JSON.stringify(scores));
+        }
+
+        function updateRecentScoresDisplay() {
+            const scores = getStoredScores();
+            const recent = scores.slice(-RECENT_COUNT).reverse().map(s => s.score);
+            document.getElementById('recentScores').textContent =
+                recent.length ? recent.join(', ') : '—';
+        }
+
+        function renderScoreChart() {
+            const scores = getStoredScores();
+            const emptyMsg = document.getElementById('chartEmptyMsg');
+            const chartContainer = document.getElementById('chartContainer');
+            const ctx = document.getElementById('scoreChart').getContext('2d');
+
+            if (scoreChart) scoreChart.destroy();
+
+            if (scores.length === 0) {
+                emptyMsg.style.display = 'block';
+                chartContainer.style.display = 'none';
+                return;
+            }
+
+            emptyMsg.style.display = 'none';
+            chartContainer.style.display = 'block';
+
+            const labels = scores.map((_, i) => `Game ${i + 1}`);
+            const data = scores.map(s => s.score);
+
+            scoreChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Score',
+                        data,
+                        backgroundColor: 'rgba(108, 99, 255, 0.6)',
+                        borderColor: 'rgba(108, 99, 255, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function openChartModal() {
+            renderScoreChart();
+            document.getElementById('chartOverlay').classList.add('visible');
+        }
+
+        function closeChartModal() {
+            document.getElementById('chartOverlay').classList.remove('visible');
+        }
 
         function generateQuestion() {
             // spreadInBps between 1 and 100 inclusive:
@@ -175,9 +342,16 @@
         function startGame() {
             // Reset attempted questions
             attemptedQuestions = [];
+            score = 0;
+            const summaryDiv = document.getElementById('summary');
 
             // Clear messages
             document.getElementById('result').textContent = '';
+            document.getElementById('score').textContent = score;
+            if (summaryDiv) {
+                summaryDiv.innerHTML = '';
+            }
+            document.getElementById('answer').value = '';
             
             // Generate first question
             generateQuestion();
@@ -188,6 +362,7 @@
             // Show answer input and submit button
             document.getElementById('answer').style.display = 'inline';
             document.getElementById('submitButton').style.display = 'inline';
+            document.getElementById('answer').focus();
 
             // Start the 120s timer
             startTimer();
@@ -211,6 +386,10 @@
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
                     document.getElementById('timer').textContent = "Time's up!";
+
+                    // Save this game's score
+                    saveScore(score);
+                    updateRecentScoresDisplay();
 
                     // Hide answer input and submit button
                     document.getElementById('answer').style.display = 'none';
@@ -267,7 +446,17 @@
         // Event listeners
         document.getElementById('submitButton').addEventListener('click', submitAnswer);
         document.getElementById('startGameButton').addEventListener('click', startGame);
-        
+        document.getElementById('viewChartBtn').addEventListener('click', openChartModal);
+        document.getElementById('closeChartBtn').addEventListener('click', closeChartModal);
+        document.getElementById('chartOverlay').addEventListener('click', (e) => {
+            if (e.target.id === 'chartOverlay') closeChartModal();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && document.getElementById('chartOverlay').classList.contains('visible')) {
+                closeChartModal();
+            }
+        });
+
         // Submit on pressing Enter
         document.getElementById('answer').addEventListener('keypress', function(event) {
             if (event.key === 'Enter') {
@@ -281,6 +470,7 @@
             summaryDiv.id = 'summary';
             summaryDiv.style.marginTop = '20px';
             container.appendChild(summaryDiv);
+            updateRecentScoresDisplay();
         });
     </script>
 </body>
